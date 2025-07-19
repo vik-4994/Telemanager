@@ -13,4 +13,4 @@ class TelegramAccountSerializer(serializers.ModelSerializer):
 class ProxySerializer(serializers.ModelSerializer):
     class Meta:
         model = Proxy
-        fields = ['id', 'host', 'port', 'username', 'password']
+        fields = ['id', 'host', 'port', 'proxy_type', 'username', 'password']
