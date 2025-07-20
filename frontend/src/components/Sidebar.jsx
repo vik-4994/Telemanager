@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 export default function Sidebar() {
   return (
     <div className="bg-dark text-white p-3 vh-100" style={{ width: "250px" }}>
-      <h4 className="mb-4">Teleraptor</h4>
+      <h4 className="mb-4">Telemanager</h4>
       <ul className="nav flex-column">
         <li className="nav-item">
           <Link to="/" className="nav-link text-white">
