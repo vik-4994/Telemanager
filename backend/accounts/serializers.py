@@ -7,7 +7,7 @@ class TelegramAccountSerializer(serializers.ModelSerializer):
         model = TelegramAccount
         fields = [
             'id', 'phone', 'geo', 'status', 'days_idle',
-            'role', 'name', 'last_used'
+            'role', 'name', 'last_used', 'proxy_id'
         ]
 
 class ProxySerializer(serializers.ModelSerializer):

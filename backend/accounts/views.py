@@ -8,6 +8,8 @@ from .models import TelegramAccount
 from .serializers import TelegramAccountSerializer
 from .models import Proxy
 from .serializers import ProxySerializer
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
 from rest_framework import generics
 
 class TelegramAccountListView(APIView):
@@ -40,7 +42,7 @@ class UploadTelegramAccountView(APIView):
             for chunk in session_file.chunks():
                 f.write(chunk)
 
-        # --- Работа с прокси ---
+
         proxy_data = data.get("proxy")
         proxy_obj = None
         if proxy_data and proxy_data.get("host") and proxy_data.get("port"):
@@ -53,7 +55,7 @@ class UploadTelegramAccountView(APIView):
                 }
             )
 
-        # --- Создание/обновление аккаунта ---
+
         TelegramAccount.objects.update_or_create(
             user=request.user,
             phone=phone,
@@ -75,3 +77,37 @@ class ProxyListCreateView(generics.ListCreateAPIView):
     queryset = Proxy.objects.all()
     serializer_class = ProxySerializer
     permission_classes = [IsAuthenticated]
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def set_account_proxy(request, account_id):
+    try:
+        account = TelegramAccount.objects.get(id=account_id, user=request.user)
+    except TelegramAccount.DoesNotExist:
+        return Response({"error": "Аккаунт не найден"}, status=404)
+
+    proxy_id = request.data.get("proxy_id")
+    if proxy_id:
+        try:
+            proxy = Proxy.objects.get(id=proxy_id)
+            account.proxy = proxy
+        except Proxy.DoesNotExist:
+            return Response({"error": "Прокси не найден"}, status=400)
+    else:
+        account.proxy = None
+
+    account.save()
+    return Response({"message": "Прокси обновлён"})
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_account(request, account_id):
+    try:
+        account = TelegramAccount.objects.get(id=account_id, user=request.user)
+    except TelegramAccount.DoesNotExist:
+        return Response({'error': 'Аккаунт не найден'}, status=404)
+
+    account.delete()
+    return Response({'message': 'Аккаунт удалён'}, status=204)

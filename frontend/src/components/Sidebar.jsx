@@ -1,25 +1,39 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
 export default function Sidebar() {
   return (
-    <div className="bg-dark text-white p-3 vh-100" style={{ width: '250px' }}>
+    <div className="bg-dark text-white p-3 vh-100" style={{ width: "250px" }}>
       <h4 className="mb-4">Teleraptor</h4>
       <ul className="nav flex-column">
         <li className="nav-item">
-          <Link to="/" className="nav-link text-white">📱 Аккаунты</Link>
+          <Link to="/" className="nav-link text-white">
+            📱 Аккаунты
+          </Link>
         </li>
         <li className="nav-item">
-          <Link to="/account/add" className="nav-link text-white">➕ Добавить аккаунт</Link>
+          <Link to="/account/add" className="nav-link text-white">
+            ➕ Добавить аккаунт
+          </Link>
         </li>
         <li className="nav-item">
-          <Link to="/proxy/add" className="nav-link text-white">🌐 Добавить прокси</Link>
+          <Link to="/proxies" className="nav-link text-white">
+            📄 Все прокси
+          </Link>
+        </li>
+        <li className="nav-item">
+          <Link to="/proxy/add" className="nav-link text-white">
+            🌐 Добавить прокси
+          </Link>
         </li>
         <li className="nav-item mt-3">
-          <button className="btn btn-outline-light w-100" onClick={() => {
-            localStorage.removeItem('access');
-            localStorage.removeItem('refresh');
-            window.location.href = '/login';
-          }}>
+          <button
+            className="btn btn-outline-light w-100"
+            onClick={() => {
+              localStorage.removeItem("access");
+              localStorage.removeItem("refresh");
+              window.location.href = "/login";
+            }}
+          >
             Выйти
           </button>
         </li>

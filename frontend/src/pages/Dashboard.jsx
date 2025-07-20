@@ -1,50 +1,101 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [proxies, setProxies] = useState([]);
+  const [editingId, setEditingId] = useState(null);
   const navigate = useNavigate();
 
-  const token = localStorage.getItem('access');
+  const token = localStorage.getItem("access");
 
   const fetchProfile = async () => {
-    const res = await fetch('http://127.0.0.1:8000/api/me/', {
-      headers: { Authorization: `Bearer ${token}` }
+    const res = await fetch("http://127.0.0.1:8000/api/me/", {
+      headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.status === 401) return navigate('/login');
+    if (res.status === 401) return navigate("/login");
     const data = await res.json();
     setUser(data);
   };
 
   const fetchAccounts = async () => {
-    const res = await fetch('http://127.0.0.1:8000/api/accounts/', {
-      headers: { Authorization: `Bearer ${token}` }
+    const res = await fetch("http://127.0.0.1:8000/api/accounts/", {
+      headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.status === 401) return navigate('/login');
+    if (res.status === 401) return navigate("/login");
     const data = await res.json();
     setAccounts(data);
     setLoading(false);
   };
 
+  const changeProxy = async (accountId, proxyId) => {
+    const res = await fetch(
+      `http://127.0.0.1:8000/api/accounts/${accountId}/set_proxy/`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ proxy_id: proxyId }),
+      }
+    );
+
+    if (res.ok) {
+      setEditingId(null);
+      fetchAccounts();
+    } else {
+      alert("Ошибка смены прокси");
+    }
+  };
+
+  const fetchProxies = async () => {
+    const res = await fetch("http://127.0.0.1:8000/api/accounts/proxies/", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (Array.isArray(data)) setProxies(data);
+  };
+
+  const deleteAccount = async (accountId) => {
+    if (!window.confirm("Удалить этот аккаунт?")) return;
+
+    const res = await fetch(
+      `http://127.0.0.1:8000/api/accounts/${accountId}/`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (res.ok) {
+      setAccounts(accounts.filter((acc) => acc.id !== accountId));
+    } else {
+      alert("Ошибка при удалении аккаунта");
+    }
+  };
+
   useEffect(() => {
-    if (!token) return navigate('/login');
+    if (!token) return navigate("/login");
     fetchProfile();
     fetchAccounts();
+    fetchProxies();
   }, []);
 
   const logout = () => {
-    localStorage.removeItem('access');
-    localStorage.removeItem('refresh');
-    navigate('/login');
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    navigate("/login");
   };
 
   return (
     <div className="d-flex vh-100">
-      {/* Content */}
       <div className="p-4 flex-grow-1">
-        <h2>👤 Привет, {user?.username || 'пользователь'}</h2>
+        <h2>👤 Привет, {user?.username || "пользователь"}</h2>
 
         <hr />
         <h4 className="mb-3">📱 Telegram аккаунты</h4>
@@ -65,6 +116,7 @@ export default function Dashboard() {
                 <th>Роль</th>
                 <th>Имя</th>
                 <th>Последний вход</th>
+                <th>Прокси</th>
                 <th>Действия</th>
               </tr>
             </thead>
@@ -76,12 +128,58 @@ export default function Dashboard() {
                   <td>{acc.geo}</td>
                   <td>{acc.status}</td>
                   <td>{acc.days_idle}</td>
-                  <td>{acc.role || '-'}</td>
+                  <td>{acc.role || "-"}</td>
                   <td>{acc.name}</td>
                   <td>{new Date(acc.last_used).toLocaleString()}</td>
                   <td>
-                    <button className="btn btn-sm btn-outline-primary me-2">✏️</button>
-                    <button className="btn btn-sm btn-outline-danger">🗑️</button>
+                    {(() => {
+                      const proxy = proxies.find((p) => p.id === acc.proxy_id);
+                      return proxy
+                        ? `${proxy.proxy_type.toUpperCase()} ${proxy.host}:${
+                            proxy.port
+                          }`
+                        : "Без прокси";
+                    })()}
+                  </td>
+                  <td>
+                    <button
+                      className="btn btn-outline-secondary btn-sm"
+                      style={{ padding: "2px 6px" }}
+                      title="Сменить прокси"
+                      onClick={() => setEditingId(acc.id)}
+                    >
+                      ⚙️
+                    </button>
+                    {editingId === acc.id && (
+                      <select
+                        className="form-select mt-2"
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          changeProxy(acc.id, value === "null" ? null : value);
+                        }}
+                        defaultValue=""
+                      >
+                        <option disabled value="">
+                          Выбери прокси
+                        </option>
+                        <option value="null">🚫 Без прокси</option>
+                        {proxies
+                          .filter((p) => p.id !== acc.proxy)
+                          .map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.proxy_type.toUpperCase()} {p.host}:{p.port}
+                            </option>
+                          ))}
+                      </select>
+                    )}
+                    <button
+                      className="btn btn-outline-danger btn-sm"
+                      style={{ padding: "2px 6px" }}
+                      title="Удалить аккаунт"
+                      onClick={() => deleteAccount(acc.id)}
+                    >
+                      🗑️
+                    </button>
                   </td>
                 </tr>
               ))}
