@@ -6,7 +6,11 @@ import socks
 from telethon import TelegramClient
 from telethon.errors import RPCError
 from telethon.sessions import SQLiteSession
+from asgiref.sync import sync_to_async
 
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "telemanager_django.settings")
 django.setup()
 
@@ -22,7 +26,7 @@ async def check_account(account: TelegramAccount):
     if not os.path.exists(session_path):
         print(f"[{account.phone}] ❌ Session not found")
         account.status = "мёртвый"
-        account.save()
+        await sync_to_async(account.save)()
         return
 
     proxy = None
@@ -57,10 +61,14 @@ async def check_account(account: TelegramAccount):
         print(f"[{account.phone}] ⚠️ Ошибка: {e}")
         account.status = "мёртвый"
     finally:
-        account.save()
+        await sync_to_async(account.save)()
+
 
 async def main():
-    accounts = TelegramAccount.objects.all()
+    accounts = await sync_to_async(list)(
+        TelegramAccount.objects.select_related('proxy').all()
+    )
+
     tasks = [check_account(acc) for acc in accounts]
     await asyncio.gather(*tasks)
 
