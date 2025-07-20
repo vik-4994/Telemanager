@@ -4,17 +4,35 @@ export default function ProxyList() {
   const [proxies, setProxies] = useState([]);
   const token = localStorage.getItem("access");
 
-  useEffect(() => {
-    const fetchProxies = async () => {
-      const res = await fetch("http://127.0.0.1:8000/api/accounts/proxies/", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (Array.isArray(data)) setProxies(data);
-    };
+  const fetchProxies = async () => {
+    const res = await fetch("http://127.0.0.1:8000/api/accounts/proxies/", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (Array.isArray(data)) setProxies(data);
+  };
 
+  useEffect(() => {
     fetchProxies();
   }, []);
+
+  const deleteProxy = async (proxyId) => {
+    if (!window.confirm("Удалить этот прокси?")) return;
+
+    const res = await fetch(
+      `http://127.0.0.1:8000/api/accounts/proxies/${proxyId}/`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    if (res.ok) {
+      setProxies(proxies.filter((p) => p.id !== proxyId));
+    } else {
+      alert("Ошибка при удалении прокси");
+    }
+  };
 
   return (
     <div className="p-4 flex-grow-1">
@@ -30,8 +48,9 @@ export default function ProxyList() {
               <th>Тип</th>
               <th>Хост</th>
               <th>Порт</th>
-              <th>Имя пользователя</th>
+              <th>Пользователь</th>
               <th>Пароль</th>
+              <th>Действия</th>
             </tr>
           </thead>
           <tbody>
@@ -43,6 +62,15 @@ export default function ProxyList() {
                 <td>{p.port}</td>
                 <td>{p.username || "-"}</td>
                 <td>{p.password ? "•••••" : "-"}</td>
+                <td>
+                  <button
+                    className="btn btn-outline-danger btn-sm"
+                    onClick={() => deleteProxy(p.id)}
+                    title="Удалить прокси"
+                  >
+                    🗑️
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

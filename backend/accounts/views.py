@@ -3,7 +3,7 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from .models import TelegramAccount
 from .serializers import TelegramAccountSerializer
 from .models import Proxy
@@ -11,6 +11,9 @@ from .serializers import ProxySerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import generics
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import subprocess
 
 class TelegramAccountListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -79,6 +82,12 @@ class ProxyListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
 
+class ProxyDestroyView(generics.DestroyAPIView):
+    queryset = Proxy.objects.all()
+    serializer_class = ProxySerializer
+    permission_classes = [IsAuthenticated]
+
+
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def set_account_proxy(request, account_id):
@@ -111,3 +120,16 @@ def delete_account(request, account_id):
 
     account.delete()
     return Response({'message': 'Аккаунт удалён'}, status=204)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@csrf_exempt
+def check_all_accounts_view(request):
+    script_path = os.path.join(os.path.dirname(__file__), 'check_all_accounts.py')
+
+    try:
+        subprocess.Popen(['python3', script_path])
+        return JsonResponse({'message': 'Проверка запущена'}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

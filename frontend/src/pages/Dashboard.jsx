@@ -79,6 +79,22 @@ export default function Dashboard() {
     }
   };
 
+  const checkAllAccounts = async () => {
+    const confirmed = window.confirm("Запустить проверку всех аккаунтов?");
+    if (!confirmed) return;
+
+    const res = await fetch("http://127.0.0.1:8000/api/accounts/check_all/", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (res.ok) {
+      alert("Проверка запущена! Обновите страницу через 10–30 секунд.");
+    } else {
+      alert("Ошибка при запуске проверки");
+    }
+  };
+
   useEffect(() => {
     if (!token) return navigate("/login");
     fetchProfile();
@@ -98,7 +114,16 @@ export default function Dashboard() {
         <h2>👤 Привет, {user?.username || "пользователь"}</h2>
 
         <hr />
-        <h4 className="mb-3">📱 Telegram аккаунты</h4>
+
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h4>📱 Telegram аккаунты</h4>
+          <button
+            className="btn btn-outline-primary btn-sm"
+            onClick={checkAllAccounts}
+          >
+            🔍 Проверить все аккаунты
+          </button>
+        </div>
 
         {loading ? (
           <p>Загрузка аккаунтов...</p>

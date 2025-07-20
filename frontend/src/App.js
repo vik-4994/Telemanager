@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AddProxy from './pages/AddProxy';
+import ProxyList from './pages/ProxyList.jsx';
 import AddTelegramAccount from './pages/AddTelegramAccount';
 import Layout from './components/Layout.jsx';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -14,7 +15,6 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Всё, что с сайдбаром — в Layout */}
         <Route
           path="/"
           element={
@@ -28,6 +28,14 @@ function App() {
           element={
             <Layout>
               <AddTelegramAccount />
+            </Layout>
+          }
+        />
+        <Route
+          path="/proxies"
+          element={
+            <Layout>
+              <ProxyList />
             </Layout>
           }
         />
