@@ -1,5 +1,6 @@
 from rest_framework import generics
-from .serializers import RegisterSerializer
+from .serializers import RegisterSerializer, TelegramUserSerializer, TrainingChannelSerializer
+from .models import TelegramUser, TrainingChannel
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -20,3 +21,11 @@ class MeView(APIView):
             "username": user.username,
             "email": user.email,
         })
+
+class TelegramUserCreateView(generics.CreateAPIView):
+    queryset = TelegramUser.objects.all()
+    serializer_class = TelegramUserSerializer
+
+class TrainingChannelCreateView(generics.CreateAPIView):
+    queryset = TrainingChannel.objects.all()
+    serializer_class = TrainingChannelSerializer
