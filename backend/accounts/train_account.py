@@ -11,6 +11,10 @@ from telethon.tl.types import Channel, Chat
 
 from asgiref.sync import sync_to_async
 
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "telemanager_django.settings")
 django.setup()
 
