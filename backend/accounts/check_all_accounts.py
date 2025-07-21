@@ -16,8 +16,6 @@ django.setup()
 
 from accounts.models import TelegramAccount
 
-API_ID = 2040
-API_HASH = "b18441a1ff607e10a989891a5462e627"
 SESSIONS_DIR = os.path.join(os.path.dirname(__file__), "..", "sessions")
 
 async def check_account(account: TelegramAccount):
@@ -42,7 +40,17 @@ async def check_account(account: TelegramAccount):
         )
 
     try:
-        client = TelegramClient(session_path, API_ID, API_HASH, proxy=proxy)
+        api_id = account.api_id
+        api_hash = account.api_hash
+
+        if not api_id or not api_hash:
+            print(f"[{account.phone}] ⚠️ Пропущен: отсутствует api_id или api_hash")
+            account.status = "нет ключей"
+            await sync_to_async(account.save)()
+            return
+
+        client = TelegramClient(session_path, int(api_id), api_hash, proxy=proxy)
+
         await client.connect()
 
         if not await client.is_user_authorized():

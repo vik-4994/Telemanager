@@ -29,3 +29,21 @@ class TelegramUserCreateView(generics.CreateAPIView):
 class TrainingChannelCreateView(generics.CreateAPIView):
     queryset = TrainingChannel.objects.all()
     serializer_class = TrainingChannelSerializer
+
+class TrainingChannelListView(generics.ListAPIView):
+    queryset = TrainingChannel.objects.all()
+    serializer_class = TrainingChannelSerializer
+
+class TrainingChannelDeleteView(generics.DestroyAPIView):
+    queryset = TrainingChannel.objects.all()
+    lookup_field = 'id'
+
+class TrainingChannelToggleActiveView(APIView):
+    def post(self, request, id):
+        try:
+            channel = TrainingChannel.objects.get(id=id)
+            channel.is_active = not channel.is_active
+            channel.save()
+            return Response({"status": "ok", "is_active": channel.is_active})
+        except TrainingChannel.DoesNotExist:
+            return Response({"error": "Channel not found"}, status=404)

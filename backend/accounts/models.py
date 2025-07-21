@@ -36,5 +36,12 @@ class TelegramAccount(models.Model):
         related_name='accounts'
     )
 
+    api_id = models.CharField(max_length=32, blank=True, null=True)
+    api_hash = models.CharField(max_length=128, blank=True, null=True)
+    twofa_password = models.CharField(max_length=128, blank=True, null=True) 
+
+    is_training = models.BooleanField(default=False)
+    training_status = models.CharField(max_length=255, blank=True, null=True)
+
     def __str__(self):
         return f"{self.phone} ({self.name})"

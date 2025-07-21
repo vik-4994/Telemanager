@@ -36,6 +36,9 @@ class UploadTelegramAccountView(APIView):
             return Response({"error": "Оба файла обязательны"}, status=400)
 
         data = json.load(json_file)
+        api_id = data.get("app_id")
+        api_hash = data.get("app_hash")
+        twofa_password = data.get("twoFA") or data.get("2fa_password")
         phone = data.get("phone")
         session_filename = f"{phone}.session"
         session_path = os.path.join(settings.BASE_DIR, "sessions", session_filename)
@@ -69,7 +72,10 @@ class UploadTelegramAccountView(APIView):
                 "days_idle": "n/a",
                 "role": data.get("role") or "-",
                 "session_file": session_filename,
-                "proxy": proxy_obj
+                "proxy": proxy_obj,
+                "api_id": api_id,
+                "api_hash": api_hash,
+                "twofa_password": twofa_password,
             }
         )
 
@@ -131,5 +137,25 @@ def check_all_accounts_view(request):
     try:
         subprocess.Popen(['python3', script_path])
         return JsonResponse({'message': 'Проверка запущена'}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+    
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@csrf_exempt
+def train_account_view(request, account_id):
+    from .models import TelegramAccount
+    try:
+        account = TelegramAccount.objects.get(id=account_id, user=request.user)
+    except TelegramAccount.DoesNotExist:
+        return JsonResponse({"error": "Аккаунт не найден"}, status=404)
+
+    phone = account.phone
+    script_path = os.path.join(os.path.dirname(__file__), 'train_account.py')
+
+    try:
+        subprocess.Popen(['python3', script_path, phone])
+        return JsonResponse({'message': f'Обучение аккаунта {phone} запущено'})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
