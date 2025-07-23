@@ -159,3 +159,25 @@ def train_account_view(request, account_id):
         return JsonResponse({'message': f'Обучение аккаунта {phone} запущено'})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def join_intermediate_channel(request):
+    from accounts.models import TelegramAccount
+    from users.models import IntermediateChannel
+
+    account_id = request.data.get('account_id')
+    channel_username = request.data.get('channel_username')
+
+    try:
+        account = TelegramAccount.objects.get(id=account_id, user=request.user)
+    except TelegramAccount.DoesNotExist:
+        return JsonResponse({'error': 'Аккаунт не найден'}, status=404)
+
+    channel, _ = IntermediateChannel.objects.get_or_create(username=channel_username)
+
+    script_path = os.path.join(os.path.dirname(__file__), 'join_channel.py')
+    subprocess.Popen(['python3', script_path, account.phone, channel.username])
+
+    return JsonResponse({'message': 'Добавление в канал запущено'})

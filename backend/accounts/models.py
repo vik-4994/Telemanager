@@ -45,3 +45,9 @@ class TelegramAccount(models.Model):
 
     def __str__(self):
         return f"{self.phone} ({self.name})"
+
+
+class IntermediateChannel(models.Model):
+    username = models.CharField(max_length=100, unique=True)
+    title = models.CharField(max_length=255, blank=True, null=True)
+    added_accounts = models.ManyToManyField(TelegramAccount, blank=True, related_name='intermediate_channels')
