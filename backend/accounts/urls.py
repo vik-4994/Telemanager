@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import TelegramAccountListView, UploadTelegramAccountView, ProxyListCreateView, set_account_proxy, delete_account, ProxyDestroyView, check_all_accounts_view, train_account_view
+from .views import TelegramAccountListView, UploadTelegramAccountView, ProxyListCreateView, set_account_proxy, delete_account, ProxyDestroyView, check_all_accounts_view, train_account_view, add_intermediate_channel, list_intermediate_channels, delete_intermediate_channel
 
 urlpatterns = [
     path('', TelegramAccountListView.as_view(), name='telegram_accounts'),
@@ -10,4 +10,7 @@ urlpatterns = [
     path('proxies/<int:pk>/', ProxyDestroyView.as_view(), name='proxy-delete'),
     path('check_all/', check_all_accounts_view, name='check-all-accounts'),
     path('<int:account_id>/train/', train_account_view, name='train-account'),
+    path('intermediate-channels/', list_intermediate_channels, name='list_channels'),
+    path('intermediate-channels/add/', add_intermediate_channel, name='add_channel'),
+    path('intermediate-channels/<int:pk>/', delete_intermediate_channel),
 ]

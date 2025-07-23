@@ -6,7 +6,7 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from .models import TelegramAccount
 from .serializers import TelegramAccountSerializer
-from .models import Proxy
+from .models import Proxy, IntermediateChannel
 from .serializers import ProxySerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -190,3 +190,14 @@ def list_intermediate_channels(request):
         for c in channels
     ]
     return Response(data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_intermediate_channel(request, pk):
+    try:
+        channel = IntermediateChannel.objects.get(id=pk)
+        channel.delete()
+        return Response({'status': 'deleted'})
+    except IntermediateChannel.DoesNotExist:
+        return Response({'error': 'Канал не найден'}, status=404)

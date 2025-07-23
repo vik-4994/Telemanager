@@ -7,7 +7,7 @@ import AddTrainingChannel from './pages/AddTrainingChannel.jsx';
 import ProxyList from './pages/ProxyList.jsx';
 import AddTelegramAccount from './pages/AddTelegramAccount';
 import ChannelsList from './pages/ChannelsList.jsx';
-import 
+import IntermediateChannels from './pages/IntermediateChannels.jsx';
 import Layout from './components/Layout.jsx';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -63,6 +63,14 @@ function App() {
           element={
             <Layout>
               <ChannelsList />
+            </Layout>
+          }
+        />
+        <Route 
+          path="/ichannels"
+          element={
+            <Layout>
+              <IntermediateChannels />
             </Layout>
           }
         />
