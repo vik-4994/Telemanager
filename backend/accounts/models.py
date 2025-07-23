@@ -50,4 +50,12 @@ class TelegramAccount(models.Model):
 class IntermediateChannel(models.Model):
     username = models.CharField(max_length=100, unique=True)
     title = models.CharField(max_length=255, blank=True, null=True)
-    added_accounts = models.ManyToManyField(TelegramAccount, blank=True, related_name='intermediate_channels')
+    created_at = models.DateTimeField(auto_now_add=True)
+    added_accounts = models.ManyToManyField(
+        'accounts.TelegramAccount',
+        blank=True,
+        related_name='intermediate_channels'
+    )
+
+    def __str__(self):
+        return self.username

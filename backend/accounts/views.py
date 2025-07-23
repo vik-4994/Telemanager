@@ -163,21 +163,30 @@ def train_account_view(request, account_id):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def join_intermediate_channel(request):
-    from accounts.models import TelegramAccount
-    from users.models import IntermediateChannel
+def add_intermediate_channel(request):
+    username = request.data.get('username')
+    if not username or not username.startswith('@'):
+        return Response({'error': 'Неверный username'}, status=400)
 
-    account_id = request.data.get('account_id')
-    channel_username = request.data.get('channel_username')
+    obj, created = IntermediateChannel.objects.get_or_create(username=username)
+    return Response({
+        'id': obj.id,
+        'username': obj.username,
+        'created': created
+    })
 
-    try:
-        account = TelegramAccount.objects.get(id=account_id, user=request.user)
-    except TelegramAccount.DoesNotExist:
-        return JsonResponse({'error': 'Аккаунт не найден'}, status=404)
 
-    channel, _ = IntermediateChannel.objects.get_or_create(username=channel_username)
-
-    script_path = os.path.join(os.path.dirname(__file__), 'join_channel.py')
-    subprocess.Popen(['python3', script_path, account.phone, channel.username])
-
-    return JsonResponse({'message': 'Добавление в канал запущено'})
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_intermediate_channels(request):
+    channels = IntermediateChannel.objects.all().order_by('-created_at')
+    data = [
+        {
+            'id': c.id,
+            'username': c.username,
+            'title': c.title,
+            'accounts': [acc.phone for acc in c.added_accounts.all()]
+        }
+        for c in channels
+    ]
+    return Response(data)
