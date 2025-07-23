@@ -3,8 +3,11 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AddProxy from './pages/AddProxy';
+import AddTrainingChannel from './pages/AddTrainingChannel.jsx';
 import ProxyList from './pages/ProxyList.jsx';
 import AddTelegramAccount from './pages/AddTelegramAccount';
+import ChannelsList from './pages/ChannelsList.jsx';
+import 
 import Layout from './components/Layout.jsx';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -44,6 +47,22 @@ function App() {
           element={
             <Layout>
               <AddProxy />
+            </Layout>
+          }
+        />
+        <Route
+          path="/add-training-channel"
+          element={
+            <Layout>
+              <AddTrainingChannel />
+            </Layout>
+          }
+        />
+        <Route
+          path="/channels"
+          element={
+            <Layout>
+              <ChannelsList />
             </Layout>
           }
         />

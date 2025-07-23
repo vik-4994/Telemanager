@@ -95,6 +95,25 @@ export default function Dashboard() {
     }
   };
 
+  const trainAccount = async (accountId) => {
+    const res = await fetch(
+      `http://127.0.0.1:8000/api/accounts/${accountId}/train/`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (res.ok) {
+      alert("Обучение запущено!");
+    } else {
+      const data = await res.json();
+      alert("Ошибка: " + (data.error || "неизвестная"));
+    }
+  };
+
   useEffect(() => {
     if (!token) return navigate("/login");
     fetchProfile();
@@ -142,6 +161,7 @@ export default function Dashboard() {
                 <th>Имя</th>
                 <th>Последний вход</th>
                 <th>Прокси</th>
+                <th>Обучение</th>
                 <th>Действия</th>
               </tr>
             </thead>
@@ -165,6 +185,17 @@ export default function Dashboard() {
                           }`
                         : "Без прокси";
                     })()}
+                  </td>
+                  <td>
+                    {acc.is_training ? (
+                      <span className="text-warning">
+                        {acc.training_status || "В процессе..."}
+                      </span>
+                    ) : (
+                      <span className="text-muted">
+                        {acc.training_status || "-"}
+                      </span>
+                    )}
                   </td>
                   <td>
                     <button
@@ -204,6 +235,14 @@ export default function Dashboard() {
                       onClick={() => deleteAccount(acc.id)}
                     >
                       🗑️
+                    </button>
+                    <button
+                      className="btn btn-outline-success btn-sm"
+                      style={{ padding: "2px 6px", marginRight: "5px" }}
+                      title="Обучить"
+                      onClick={() => trainAccount(acc.id)}
+                    >
+                      🧠
                     </button>
                   </td>
                 </tr>

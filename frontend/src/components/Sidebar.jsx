@@ -25,6 +25,16 @@ export default function Sidebar() {
             🌐 Добавить прокси
           </Link>
         </li>
+        <li className="nav-item">
+          <Link to="/channels" className="nav-link text-white">
+            📡 Список каналов
+          </Link>
+        </li>
+        <li className="nav-item">
+          <Link to="/add-training-channel" className="nav-link text-white">
+            📡 Добавить группу/канал
+          </Link>
+        </li>
         <li className="nav-item mt-3">
           <button
             className="btn btn-outline-light w-100"
