@@ -32,6 +32,24 @@ export default function Dashboard() {
     setUser(data);
   };
 
+  const stopInvite = async (accountId) => {
+    const res = await fetch("http://127.0.0.1:8000/api/accounts/invite/stop/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ account_id: accountId }),
+    });
+
+    if (res.ok) {
+      alert("Инвайт остановлен");
+      fetchAccounts();
+    } else {
+      alert("Ошибка при остановке");
+    }
+  };
+
   const fetchAccounts = async () => {
     const res = await fetch("http://127.0.0.1:8000/api/accounts/", {
       headers: { Authorization: `Bearer ${token}` },
@@ -277,6 +295,15 @@ export default function Dashboard() {
                     >
                       🧠
                     </button>
+                    {acc.invite_task_id ? (
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => stopInvite(acc.id)}
+                      >
+                        🛑 Остановить инвайт
+                      </button>
+                    ) : ''}
+
                     <select
                       className="form-select form-select-sm mt-1"
                       onChange={(e) => {

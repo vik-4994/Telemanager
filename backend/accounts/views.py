@@ -15,7 +15,10 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from accounts.tasks import invite_all_users_task
 import subprocess
-from celery.task.control import revoke
+from celery.app.control import Control
+from celery import current_app
+revoke = current_app.control.revoke
+
 
 
 class TelegramAccountListView(APIView):
