@@ -40,6 +40,7 @@ SIMPLE_JWT = {
 
 
 # Application definition
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (

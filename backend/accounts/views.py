@@ -13,7 +13,10 @@ from rest_framework.response import Response
 from rest_framework import generics
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from accounts.tasks import invite_all_users_task
 import subprocess
+from celery.task.control import revoke
+
 
 class TelegramAccountListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -201,3 +204,67 @@ def delete_intermediate_channel(request, pk):
         return Response({'status': 'deleted'})
     except IntermediateChannel.DoesNotExist:
         return Response({'error': 'Канал не найден'}, status=404)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_account_to_intermediate_channel(request, pk):
+    account_id = request.data.get('account_id')
+
+    try:
+        account = TelegramAccount.objects.get(id=account_id, user=request.user)
+    except TelegramAccount.DoesNotExist:
+        return Response({'error': 'Аккаунт не найден'}, status=404)
+
+    try:
+        channel = IntermediateChannel.objects.get(id=pk)
+    except IntermediateChannel.DoesNotExist:
+        return Response({'error': 'Канал не найден'}, status=404)
+
+    script_path = os.path.join(os.path.dirname(__file__), 'join_channel.py')
+
+    try:
+        subprocess.Popen(['python3', script_path, account.phone, channel.username])
+        return Response({'message': f'Добавление аккаунта {account.phone} в {channel.username} запущено'})
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def invite_all_users_view(request):
+    account_id = request.data.get('account_id')
+    channel_id = request.data.get('channel_id')
+    interval = int(request.data.get('interval', 30))
+
+    if not all([account_id, channel_id]):
+        return Response({'error': 'Нужен account_id и channel_id'}, status=400)
+
+    try:
+        account = TelegramAccount.objects.get(id=account_id, user=request.user)
+    except TelegramAccount.DoesNotExist:
+        return Response({'error': 'Аккаунт не найден'}, status=404)
+
+    task = invite_all_users_task.delay(account_id, channel_id, interval)
+
+    account.invite_task_id = task.id
+    account.save()
+
+    return Response({'message': 'Инвайт запущен', 'task_id': task.id})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def stop_invite_task(request):
+    account_id = request.data.get("account_id")
+    try:
+        account = TelegramAccount.objects.get(id=account_id, user=request.user)
+        if not account.invite_task_id:
+            return Response({"error": "Задача не найдена"}, status=404)
+
+        revoke(account.invite_task_id, terminate=True)
+        account.invite_task_id = None
+        account.save()
+        return Response({"message": "Задача остановлена"})
+    except TelegramAccount.DoesNotExist:
+        return Response({"error": "Аккаунт не найден"}, status=404)

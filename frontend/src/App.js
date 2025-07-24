@@ -9,6 +9,7 @@ import AddTelegramAccount from './pages/AddTelegramAccount';
 import ChannelsList from './pages/ChannelsList.jsx';
 import IntermediateChannels from './pages/IntermediateChannels.jsx';
 import Layout from './components/Layout.jsx';
+import InviteUsers from './pages/InviteUsers.jsx';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
@@ -71,6 +72,14 @@ function App() {
           element={
             <Layout>
               <IntermediateChannels />
+            </Layout>
+          }
+        />
+        <Route 
+          path='/invite-users'
+          element={
+            <Layout>
+              <InviteUsers/>
             </Layout>
           }
         />

@@ -7,9 +7,21 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [proxies, setProxies] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  const [channels, setChannels] = useState([]);
   const navigate = useNavigate();
 
   const token = localStorage.getItem("access");
+
+  const fetchChannels = async () => {
+    const res = await fetch(
+      "http://127.0.0.1:8000/api/accounts/intermediate-channels/",
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    const data = await res.json();
+    setChannels(data);
+  };
 
   const fetchProfile = async () => {
     const res = await fetch("http://127.0.0.1:8000/api/me/", {
@@ -79,6 +91,26 @@ export default function Dashboard() {
     }
   };
 
+  const addAccountToChannel = async (accountId, channelId) => {
+    const res = await fetch(
+      `http://127.0.0.1:8000/api/accounts/intermediate-channels/${channelId}/add_account/`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ account_id: accountId }),
+      }
+    );
+
+    if (res.ok) {
+      alert("✅ Запуск добавления в канал");
+    } else {
+      alert("❌ Ошибка при добавлении в канал");
+    }
+  };
+
   const checkAllAccounts = async () => {
     const confirmed = window.confirm("Запустить проверку всех аккаунтов?");
     if (!confirmed) return;
@@ -119,6 +151,7 @@ export default function Dashboard() {
     fetchProfile();
     fetchAccounts();
     fetchProxies();
+    fetchChannels();
   }, []);
 
   const logout = () => {
@@ -244,6 +277,20 @@ export default function Dashboard() {
                     >
                       🧠
                     </button>
+                    <select
+                      className="form-select form-select-sm mt-1"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val) addAccountToChannel(acc.id, val);
+                      }}
+                    >
+                      <option value="">➕ В канал</option>
+                      {channels.map((ch) => (
+                        <option key={ch.id} value={ch.id}>
+                          {ch.username}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                 </tr>
               ))}
