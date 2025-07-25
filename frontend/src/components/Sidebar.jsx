@@ -16,6 +16,11 @@ export default function Sidebar() {
           </Link>
         </li>
         <li className="nav-item">
+          <Link to="/telegram/auth" className="nav-link text-white">
+            ➕ Добавить аккаунт через телефон
+          </Link>
+        </li>
+        <li className="nav-item">
           <Link to="/proxies" className="nav-link text-white">
             📄 Все прокси
           </Link>

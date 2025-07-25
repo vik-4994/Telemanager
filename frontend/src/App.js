@@ -10,6 +10,7 @@ import ChannelsList from './pages/ChannelsList.jsx';
 import IntermediateChannels from './pages/IntermediateChannels.jsx';
 import Layout from './components/Layout.jsx';
 import InviteUsers from './pages/InviteUsers.jsx';
+import TelegramAuth from './pages/TelegramAuth.jsx';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
@@ -83,6 +84,14 @@ function App() {
             </Layout>
           }
         />
+        <Route
+            path="/telegram/auth"
+            element={
+              <Layout>
+                <TelegramAuth />
+              </Layout>
+            }
+          />
       </Routes>
     </Router>
   );
