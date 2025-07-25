@@ -250,8 +250,10 @@ def invite_all_users_view(request):
 
     task = invite_all_users_task.delay(account_id, channel_id, interval)
 
+    account.stop_inviting = False
     account.invite_task_id = task.id
     account.save()
+
 
     return Response({'message': 'Инвайт запущен', 'task_id': task.id})
 
@@ -266,8 +268,10 @@ def stop_invite_task(request):
             return Response({"error": "Задача не найдена"}, status=404)
 
         revoke(account.invite_task_id, terminate=True)
+        account.stop_inviting = True
         account.invite_task_id = None
         account.save()
+
         return Response({"message": "Задача остановлена"})
     except TelegramAccount.DoesNotExist:
         return Response({"error": "Аккаунт не найден"}, status=404)

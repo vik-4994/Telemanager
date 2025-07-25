@@ -22,7 +22,7 @@ async def check_account(account: TelegramAccount):
     session_path = os.path.join(SESSIONS_DIR, f"{account.phone}.session")
 
     if not os.path.exists(session_path):
-        print(f"[{account.phone}] ❌ Session not found")
+        print(f"[{account.phone}] Session not found")
         account.status = "мёртвый"
         await sync_to_async(account.save)()
         return
@@ -44,7 +44,7 @@ async def check_account(account: TelegramAccount):
         api_hash = account.api_hash
 
         if not api_id or not api_hash:
-            print(f"[{account.phone}] ⚠️ Пропущен: отсутствует api_id или api_hash")
+            print(f"[{account.phone}] Пропущен: отсутствует api_id или api_hash")
             account.status = "нет ключей"
             await sync_to_async(account.save)()
             return
@@ -54,7 +54,7 @@ async def check_account(account: TelegramAccount):
         await client.connect()
 
         if not await client.is_user_authorized():
-            print(f"[{account.phone}] ❌ Unauthorized")
+            print(f"[{account.phone}] Unauthorized")
             account.status = "мёртвый"
         else:
             me = await client.get_me()
@@ -63,10 +63,10 @@ async def check_account(account: TelegramAccount):
 
         await client.disconnect()
     except RPCError as e:
-        print(f"[{account.phone}] 🧨 RPC Error: {e}")
+        print(f"[{account.phone}] RPC Error: {e}")
         account.status = "мёртвый"
     except Exception as e:
-        print(f"[{account.phone}] ⚠️ Ошибка: {e}")
+        print(f"[{account.phone}] Ошибка: {e}")
         account.status = "мёртвый"
     finally:
         await sync_to_async(account.save)()
