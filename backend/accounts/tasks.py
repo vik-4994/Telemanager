@@ -4,7 +4,7 @@ from telethon.sync import TelegramClient
 from telethon.tl.functions.channels import InviteToChannelRequest
 from telethon.tl.types import PeerChannel
 from telethon.errors import FloodWaitError, RPCError
-
+from django.db import transaction
 from accounts.models import TelegramAccount, IntermediateChannel
 from users.models import TelegramUser
 
@@ -20,7 +20,13 @@ def invite_all_users_task(self, account_id, channel_id, interval=30):
         with client:
             entity = client.get_entity(channel.username)
             peer = PeerChannel(entity.id)
-            users = TelegramUser.objects.filter(invite_status="pending")[:500]
+            users = []
+            with transaction.atomic():
+                candidates = TelegramUser.objects.select_for_update(skip_locked=True).filter(invite_status="pending")[:500]
+                for user in candidates:
+                    user.invite_status = "processing"
+                    user.save()
+                    users.append(user)
 
             to_invite = []
             user_refs = []
@@ -99,3 +105,70 @@ def invite_all_users_task(self, account_id, channel_id, interval=30):
 
     except Exception as e:
         return f"Ошибка: {str(e)}"
+
+
+@shared_task(bind=True)
+def send_direct_messages_task(self, account_id, message_text, limit=100, interval=10, media_path=None):
+    import os, time
+    from accounts.models import TelegramAccount
+    from users.models import TelegramUser
+    from django.db import transaction
+    from telethon.sync import TelegramClient
+    from telethon.errors import (
+        FloodWaitError,
+        RPCError,
+        PeerIdInvalidError,
+        UserPrivacyRestrictedError,
+    )
+
+    account = TelegramAccount.objects.get(id=account_id)
+    session_path = os.path.join("sessions", account.session_file)
+    client = TelegramClient(session_path, int(account.api_id), account.api_hash)
+
+    with client:
+        with transaction.atomic():
+            users = list(
+                TelegramUser.objects
+                .select_for_update(skip_locked=True)
+                .filter(
+                    message_status="pending",
+                    invite_status__in=["pending", "failed", "skipped"]
+                )[:limit]
+            )
+            for u in users:
+                u.message_status = "processing"
+                u.save()
+
+        # Рассылка сообщений
+        for user in users:
+            try:
+                entity = client.get_entity(user.user_id)
+
+                if media_path and os.path.exists(media_path):
+                    client.send_file(entity, media_path, caption=message_text)
+                else:
+                    client.send_message(entity, message_text)
+
+                user.message_status = "sent"
+
+            except FloodWaitError as e:
+                print(f"[{user.user_id}] ⏳ FloodWait: {e.seconds} сек")
+                time.sleep(e.seconds)
+                continue
+
+            except UserPrivacyRestrictedError as e:
+                print(f"[{user.user_id}] 🚫 Приватность: {e}")
+                user.message_status = "skipped"
+
+            except (PeerIdInvalidError, RPCError) as e:
+                print(f"[{user.user_id}] RPC ошибка: {e}")
+                user.message_status = "failed"
+
+            except Exception as e:
+                print(f"[{user.user_id}] ❗ Неизвестная ошибка: {e}")
+                user.message_status = "failed"
+
+            user.save()
+            time.sleep(interval)
+
+    return f"Рассылка завершена аккаунтом {account.phone}"

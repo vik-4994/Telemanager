@@ -12,6 +12,7 @@ from telethon.tl.functions.channels import (
     GetFullChannelRequest,
 )
 from telethon.tl.types import Channel, Chat, User
+from telethon.errors import FloodWaitError
 
 from asgiref.sync import sync_to_async
 
@@ -116,6 +117,7 @@ async def train_account(account: TelegramAccount):
             added = 0
             counter = 0
             async for message in client.iter_messages(group_id, limit=500000):
+                user_owner = await sync_to_async(lambda: account.user)()
                 if message.from_id:
                     user_id = getattr(message.from_id, "user_id", None)
                     if not user_id:
@@ -129,8 +131,13 @@ async def train_account(account: TelegramAccount):
 
                     try:
                         user = await client.get_entity(message.from_id)
+                    except FloodWaitError as e:
+                        print(f"⏳ Flood wait: ждём {e.seconds} сек")
+                        await asyncio.sleep(e.seconds)
+                        continue
                     except Exception as e:
                         print(f"⚠️ ошибка получения user: {e}")
+                        await asyncio.sleep(1)
                         continue
 
                     if isinstance(user, User):
@@ -140,6 +147,7 @@ async def train_account(account: TelegramAccount):
                             name=f"{user.first_name or ''} {user.last_name or ''}".strip(),
                             phone=user.phone or "",
                             source_channel=channel.username,
+                            owner=user_owner,
                         )
 
                         added += 1
@@ -149,6 +157,7 @@ async def train_account(account: TelegramAccount):
 
             offset = 0
             limit = 200
+
             while True:
                 participants = await client(
                     GetParticipantsRequest(
@@ -176,6 +185,7 @@ async def train_account(account: TelegramAccount):
                         name=f"{user.first_name or ''} {user.last_name or ''}".strip(),
                         phone=user.phone or "",
                         source_channel=channel.username,
+                        owner=user_owner,
                     )
 
                 offset += len(participants.users)

@@ -13,10 +13,17 @@ from rest_framework.response import Response
 from rest_framework import generics
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from accounts.tasks import invite_all_users_task
+from accounts.tasks import invite_all_users_task, send_direct_messages_task
 import subprocess
 from celery.app.control import Control
 from celery import current_app
+from telethon.sync import TelegramClient
+from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError
+from django.conf import settings
+import asyncio
+from rest_framework.decorators import parser_classes
+from rest_framework.parsers import MultiPartParser
+
 revoke = current_app.control.revoke
 
 
@@ -275,3 +282,111 @@ def stop_invite_task(request):
         return Response({"message": "Задача остановлена"})
     except TelegramAccount.DoesNotExist:
         return Response({"error": "Аккаунт не найден"}, status=404)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_code_view(request):
+    data = request.data
+    phone = data.get("phone")
+    api_id = data.get("api_id")
+    api_hash = data.get("api_hash")
+
+    if not all([phone, api_id, api_hash]):
+        return Response({"error": "Нужно указать phone, api_id и api_hash"}, status=400)
+
+    session_dir = os.path.join(settings.BASE_DIR, "sessions")
+    os.makedirs(session_dir, exist_ok=True)
+    session_name = os.path.join("sessions", phone) 
+
+    async def send():
+        async with TelegramClient(session_name, api_id, api_hash) as client:
+            result = await client.send_code_request(phone)
+            phone_code_hash = result.phone_code_hash
+
+            TelegramAccount.objects.update_or_create(
+                user=request.user,
+                phone=phone,
+                defaults={
+                    "api_id": api_id,
+                    "api_hash": api_hash,
+                    "session_file": f"{phone}.session",
+                    "phone_code_hash": phone_code_hash,
+                },
+            )
+
+    try:
+        asyncio.run(send())
+        return Response({"message": "Код отправлен"})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+from telethon.errors import PhoneCodeInvalidError, SessionPasswordNeededError
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def sign_in_view(request):
+    data = request.data
+    phone = data.get("phone")
+    code = data.get("code")
+    password = data.get("password", "")
+
+    if not all([phone, code]):
+        return Response({"error": "Нужно указать phone и code"}, status=400)
+
+    try:
+        account = TelegramAccount.objects.get(phone=phone, user=request.user)
+    except TelegramAccount.DoesNotExist:
+        return Response({"error": "Аккаунт не найден"}, status=404)
+
+    session_name = os.path.join("sessions", phone)
+
+    async def login():
+        async with TelegramClient(session_name, account.api_id, account.api_hash) as client:
+            try:
+                await client.sign_in(phone=phone, code=code, phone_code_hash=account.phone_code_hash)
+            except SessionPasswordNeededError:
+                await client.sign_in(password=password)
+
+            me = await client.get_me()
+            account.name = f"{me.first_name} {me.last_name or ''}".strip()
+            account.status = "активен"
+            account.phone_code_hash = None
+            account.twofa_password = password
+            account.save()
+
+    try:
+        asyncio.run(login())
+        return Response({"message": "Успешно авторизовано"})
+    except PhoneCodeInvalidError:
+        return Response({"error": "Неверный код"}, status=401)
+    except SessionPasswordNeededError:
+        return Response({"error": "Нужен пароль от Telegram"}, status=403)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser])
+def send_direct_messages_view(request):
+    account_id = request.data.get("account_id")
+    message = request.data.get("message_text")
+    limit = int(request.data.get("limit", 100))
+    interval = int(request.data.get("interval", 10))
+    media_file = request.FILES.get("media")
+
+    if not account_id or not message:
+        return Response({"error": "Нужен account_id и message_text"}, status=400)
+
+    if media_file:
+        media_path = os.path.join("media", media_file.name)
+        os.makedirs("media", exist_ok=True)
+        with open(media_path, "wb+") as f:
+            for chunk in media_file.chunks():
+                f.write(chunk)
+    else:
+        media_path = None
+
+    task = send_direct_messages_task.delay(account_id, message, limit, interval, media_path)
+    return Response({"message": "Задача рассылки запущена", "task_id": task.id})

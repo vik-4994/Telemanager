@@ -46,6 +46,8 @@ class TelegramAccount(models.Model):
     invite_task_id = models.CharField(max_length=255, blank=True, null=True)
     stop_inviting = models.BooleanField(default=False)
 
+    phone_code_hash = models.CharField(max_length=255, blank=True, null=True)
+
     def __str__(self):
         return f"{self.phone} ({self.name})"
 

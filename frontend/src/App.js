@@ -1,17 +1,18 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import AddProxy from './pages/AddProxy';
-import AddTrainingChannel from './pages/AddTrainingChannel.jsx';
-import ProxyList from './pages/ProxyList.jsx';
-import AddTelegramAccount from './pages/AddTelegramAccount';
-import ChannelsList from './pages/ChannelsList.jsx';
-import IntermediateChannels from './pages/IntermediateChannels.jsx';
-import Layout from './components/Layout.jsx';
-import InviteUsers from './pages/InviteUsers.jsx';
-import TelegramAuth from './pages/TelegramAuth.jsx';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import AddProxy from "./pages/AddProxy";
+import AddTrainingChannel from "./pages/AddTrainingChannel.jsx";
+import ProxyList from "./pages/ProxyList.jsx";
+import AddTelegramAccount from "./pages/AddTelegramAccount";
+import ChannelsList from "./pages/ChannelsList.jsx";
+import IntermediateChannels from "./pages/IntermediateChannels.jsx";
+import Layout from "./components/Layout.jsx";
+import InviteUsers from "./pages/InviteUsers.jsx";
+import TelegramAuth from "./pages/TelegramAuth.jsx";
+import Broadcast from "./pages/Broadcast.jsx";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 function App() {
   return (
@@ -68,7 +69,7 @@ function App() {
             </Layout>
           }
         />
-        <Route 
+        <Route
           path="/ichannels"
           element={
             <Layout>
@@ -76,22 +77,30 @@ function App() {
             </Layout>
           }
         />
-        <Route 
-          path='/invite-users'
+        <Route
+          path="/invite-users"
           element={
             <Layout>
-              <InviteUsers/>
+              <InviteUsers />
             </Layout>
           }
         />
         <Route
-            path="/telegram/auth"
-            element={
-              <Layout>
-                <TelegramAuth />
-              </Layout>
-            }
-          />
+          path="/telegram/auth"
+          element={
+            <Layout>
+              <TelegramAuth />
+            </Layout>
+          }
+        />
+        <Route
+          path="/broadcast"
+          element={
+            <Layout>
+              <Broadcast />
+            </Layout>
+          }
+        />
       </Routes>
     </Router>
   );

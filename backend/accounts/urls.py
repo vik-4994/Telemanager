@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import TelegramAccountListView, UploadTelegramAccountView, ProxyListCreateView, set_account_proxy, delete_account, ProxyDestroyView, check_all_accounts_view, train_account_view, add_intermediate_channel, list_intermediate_channels, delete_intermediate_channel, add_account_to_intermediate_channel, invite_all_users_view, stop_invite_task
+from .views import TelegramAccountListView, UploadTelegramAccountView, ProxyListCreateView, set_account_proxy, delete_account, ProxyDestroyView, check_all_accounts_view, train_account_view, add_intermediate_channel, list_intermediate_channels, delete_intermediate_channel, add_account_to_intermediate_channel, invite_all_users_view, stop_invite_task, send_code_view, sign_in_view, send_direct_messages_view
 
 urlpatterns = [
     path('', TelegramAccountListView.as_view(), name='telegram_accounts'),
@@ -15,5 +15,9 @@ urlpatterns = [
     path('intermediate-channels/<int:pk>/', delete_intermediate_channel, name='delete-intermediate-channel'),
     path('intermediate-channels/<int:pk>/add_account/', add_account_to_intermediate_channel, name='add-account-to-ichannel'),
     path("invite/", invite_all_users_view, name='invite-to-channel'),
-    path("invite/stop/", stop_invite_task, name="stop-invite-task")
+    path("invite/stop/", stop_invite_task, name="stop-invite-task"),
+    path("send_code/", send_code_view, name="send_code"),
+    path("sign_in/", sign_in_view, name="sign_in"),
+    path("broadcast/", send_direct_messages_view, name="broadcast"),
+
 ]

@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 class TelegramUser(models.Model):
     user_id = models.BigIntegerField(unique=True)
@@ -15,6 +16,25 @@ class TelegramUser(models.Model):
             ('failed', 'Failed')
         ],
         default='pending'
+    )
+
+    message_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('sent', 'Sent'),
+            ('failed', 'Failed')
+        ],
+        default='pending'
+    )
+
+
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="telegram_users",
+        null=True,
+        blank=True,
     )
 
     def __str__(self):

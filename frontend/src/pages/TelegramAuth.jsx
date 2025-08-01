@@ -9,12 +9,14 @@ export default function TelegramAuth() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const token = localStorage.getItem("access");
 
   const sendCode = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/send_code/", {
+      setLoading(true);
+      const res = await fetch("http://127.0.0.1:8000/api/accounts/send_code/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -37,7 +39,7 @@ export default function TelegramAuth() {
 
   const signIn = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/sign_in/", {
+      const res = await fetch("http://127.0.0.1:8000/api/accounts/sign_in/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

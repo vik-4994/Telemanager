@@ -50,6 +50,11 @@ export default function Sidebar() {
             Инвайтинг
           </Link>
         </li>
+        <li className="nav-item">
+          <Link to="/broadcast" className="nav-link text-white">
+            📨 Рассылка в ЛС
+          </Link>
+        </li>
         <li className="nav-item mt-3">
           <button
             className="btn btn-outline-light w-100"

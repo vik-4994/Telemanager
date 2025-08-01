@@ -140,3 +140,6 @@ vite.config.ts.timestamp-*
 
 venv
 .DS_Store
+*.session
+*.sqlite3 
+cleaned.json
