@@ -1,46 +1,67 @@
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
+from rest_framework import generics, permissions, status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-
 from .models import ForwardingGroup, ForwardingTask
 from .serializers import ForwardingGroupSerializer, ForwardingTaskSerializer
 
+# --- GROUPS ---
 
-class ForwardingGroupViewSet(viewsets.ModelViewSet):
+class ForwardingGroupListCreateView(generics.ListCreateAPIView):
     queryset = ForwardingGroup.objects.all()
     serializer_class = ForwardingGroupSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Только свои группы
         return self.queryset.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
-    @action(detail=True, methods=['post'])
-    def disable(self, request, pk=None):
-        group = self.get_object()
+class ForwardingGroupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = ForwardingGroup.objects.all()
+    serializer_class = ForwardingGroupSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def disable_group(request, pk):
+    try:
+        group = ForwardingGroup.objects.get(pk=pk, user=request.user)
         group.is_active = False
         group.save()
-        return Response({'status': 'disabled'}, status=status.HTTP_200_OK)
+        return Response({'status': 'disabled'})
+    except ForwardingGroup.DoesNotExist:
+        return Response({'error': 'Group not found'}, status=404)
 
-    @action(detail=True, methods=['post'])
-    def enable(self, request, pk=None):
-        group = self.get_object()
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def enable_group(request, pk):
+    try:
+        group = ForwardingGroup.objects.get(pk=pk, user=request.user)
         group.is_active = True
         group.save()
-        return Response({'status': 'enabled'}, status=status.HTTP_200_OK)
+        return Response({'status': 'enabled'})
+    except ForwardingGroup.DoesNotExist:
+        return Response({'error': 'Group not found'}, status=404)
 
-
-class ForwardingTaskViewSet(viewsets.ModelViewSet):
+class ForwardingTaskListCreateView(generics.ListCreateAPIView):
     queryset = ForwardingTask.objects.all()
     serializer_class = ForwardingTaskSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Только свои задачи
         return self.queryset.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+class ForwardingTaskRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = ForwardingTask.objects.all()
+    serializer_class = ForwardingTaskSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
