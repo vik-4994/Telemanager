@@ -12,6 +12,9 @@ import Layout from "./components/Layout.jsx";
 import InviteUsers from "./pages/InviteUsers.jsx";
 import TelegramAuth from "./pages/TelegramAuth.jsx";
 import Broadcast from "./pages/Broadcast.jsx";
+import ForwardingGroups from "./pages/ForwardingGroups.jsx";
+import CreateForwardingTask from "./pages/CreateForwardingTask.jsx";
+import ForwardingTasks from "./pages/ForwardingTasks.jsx";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 function App() {
@@ -98,6 +101,30 @@ function App() {
           element={
             <Layout>
               <Broadcast />
+            </Layout>
+          }
+        />
+        <Route
+          path="/forwarding/groups"
+          element={
+            <Layout>
+              <ForwardingGroups />
+            </Layout>
+          }
+        />
+        <Route
+          path="/forwarding/create-task"
+          element={
+            <Layout>
+              <CreateForwardingTask />
+            </Layout>
+          }
+        />
+        <Route
+          path="/forwarding/tasks"
+          element={
+            <Layout>
+              <ForwardingTasks />
             </Layout>
           }
         />

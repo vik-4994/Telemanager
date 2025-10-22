@@ -36,17 +36,21 @@ export default function ForwardingGroups() {
   };
 
   const handleToggle = async (id, isActive) => {
-    const res = await fetch(
-      `http://127.0.0.1:8000/api/forwarding/groups/${id}/${isActive ? "disable" : "enable"}/`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    if (res.ok) {
-      fetchGroups();
-    }
-  };
+  const endpoint = isActive ? "disable" : "enable";
+  const res = await fetch(`http://127.0.0.1:8000/api/forwarding/groups/${id}/${endpoint}/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (res.ok) {
+    fetchGroups();
+  } else {
+    alert("❌ Ошибка включения/отключения");
+  }
+};
+
 
   const handleDelete = async (id) => {
     const confirmed = window.confirm("Удалить эту группу?");

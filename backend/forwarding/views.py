@@ -3,8 +3,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from .models import ForwardingGroup, ForwardingTask
 from .serializers import ForwardingGroupSerializer, ForwardingTaskSerializer
+from accounts.tasks import process_forwarding_task_by_id
 
-# --- GROUPS ---
 
 class ForwardingGroupListCreateView(generics.ListCreateAPIView):
     queryset = ForwardingGroup.objects.all()
@@ -56,7 +56,10 @@ class ForwardingTaskListCreateView(generics.ListCreateAPIView):
         return self.queryset.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        task = serializer.save(user=self.request.user)
+        async_result = process_forwarding_task_by_id.delay(task.id)
+        task.celery_task_id = async_result.id
+        task.save()
 
 class ForwardingTaskRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = ForwardingTask.objects.all()
@@ -65,3 +68,24 @@ class ForwardingTaskRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIV
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
+
+
+from celery import current_app
+revoke = current_app.control.revoke
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def stop_forwarding_task(request, pk):
+    try:
+        task = ForwardingTask.objects.get(pk=pk, user=request.user)
+        if not task.celery_task_id:
+            return Response({"error": "Задача не запущена или ID отсутствует"}, status=400)
+
+        revoke(task.celery_task_id, terminate=True)
+        task.is_active = False
+        task.celery_task_id = None
+        task.save()
+
+        return Response({"message": "Задача остановлена"})
+    except ForwardingTask.DoesNotExist:
+        return Response({"error": "Задача не найдена"}, status=404)

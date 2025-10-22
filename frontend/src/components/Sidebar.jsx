@@ -40,7 +40,7 @@ export default function Sidebar() {
             📡 Добавить группу/канал
           </Link>
         </li>
-         <li className="nav-item">
+        <li className="nav-item">
           <Link to="/ichannels" className="nav-link text-white">
             Каналы-посредники
           </Link>
@@ -55,6 +55,22 @@ export default function Sidebar() {
             📨 Рассылка в ЛС
           </Link>
         </li>
+        <li className="nav-item">
+          <Link to="/forwarding/groups" className="nav-link text-white">
+            Группы для пересылки
+          </Link>
+        </li>
+        <li className="nav-item">
+          <Link to="/forwarding/create-task" className="nav-link text-white">
+            Создать задачу пересылки
+          </Link>
+        </li>
+        <li className="nav-item">
+          <Link to="/forwarding/tasks" className="nav-link text-white">
+            📤 Задачи пересылки
+          </Link>
+        </li>
+
         <li className="nav-item mt-3">
           <button
             className="btn btn-outline-light w-100"

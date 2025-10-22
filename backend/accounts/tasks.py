@@ -139,7 +139,6 @@ def send_direct_messages_task(self, account_id, message_text, limit=100, interva
                 u.message_status = "processing"
                 u.save()
 
-        # Рассылка сообщений
         for user in users:
             try:
                 entity = client.get_entity(user.user_id)
@@ -172,3 +171,129 @@ def send_direct_messages_task(self, account_id, message_text, limit=100, interva
             time.sleep(interval)
 
     return f"Рассылка завершена аккаунтом {account.phone}"
+
+
+from forwarding.models import ForwardingTask, ForwardingGroup
+from django.utils import timezone
+from telethon.sync import TelegramClient
+from telethon.errors import FloodWaitError, RPCError
+from telethon.tl.functions.channels import JoinChannelRequest
+import os, random, time
+
+@shared_task
+def process_forwarding_tasks():
+    now = timezone.now()
+    tasks = ForwardingTask.objects.filter(is_active=True).select_related('account').prefetch_related('target_groups')
+
+    for task in tasks:
+        if task.last_sent_at and (now - task.last_sent_at).total_seconds() < task.interval_minutes * 60:
+            continue
+
+        account = task.account
+        session_path = os.path.join("sessions", account.session_file)
+
+        try:
+            client = TelegramClient(session_path, int(account.api_id), account.api_hash)
+            with client:
+                try:
+                    client(JoinChannelRequest(task.source_channel))
+                except RPCError:
+                    pass
+
+                messages = client.get_messages(task.source_channel, limit=30)
+                if not messages:
+                    continue
+
+                message = random.choice(messages)
+
+                for group in task.target_groups.filter(is_active=True):
+                    try:
+                        try:
+                            client(JoinChannelRequest(group.username))
+                        except RPCError:
+                            pass
+
+                        client.forward_messages(group.username, message)
+                    except FloodWaitError as e:
+                        time.sleep(e.seconds)
+                    except Exception:
+                        continue
+
+                task.last_sent_at = now
+                task.save()
+
+        except Exception:
+            continue
+
+
+from telethon.tl.functions.channels import GetFullChannelRequest
+from telethon.tl.types import PeerChannel, Channel
+from forwarding.models import ForwardingTask
+from telethon.sync import TelegramClient
+from telethon.errors import FloodWaitError, RPCError
+from telethon.tl.functions.channels import JoinChannelRequest
+from django.utils import timezone
+import os, random, time
+
+
+@shared_task(bind=True)
+def process_forwarding_task_by_id(self, task_id):
+    try:
+        task = ForwardingTask.objects.select_related('account').prefetch_related('target_groups').get(id=task_id)
+        account = task.account
+        session_path = os.path.join("sessions", account.session_file)
+
+        client = TelegramClient(session_path, int(account.api_id), account.api_hash)
+
+        with client:
+            while True:
+                task.refresh_from_db()
+                if not task.is_active:
+                    print(f"🛑 Задача ID={task_id} остановлена")
+                    break
+
+                try:
+                    source_entity = client.get_entity(task.source_channel)
+                    if not isinstance(source_entity, Channel):
+                        print(f"❌ {task.source_channel} не является каналом/супергруппой")
+                        time.sleep(10)
+                        continue
+                except Exception as e:
+                    print(f"❌ Ошибка получения source_channel: {e}")
+                    time.sleep(10)
+                    continue
+
+                now = timezone.now()
+                if task.last_sent_at and (now - task.last_sent_at).total_seconds() < task.interval_minutes * 60:
+                    wait_time = task.interval_minutes * 60 - (now - task.last_sent_at).total_seconds()
+                    print(f"⏳ Ждём {int(wait_time)} сек.")
+                    time.sleep(wait_time)
+                    continue
+
+                messages = client.get_messages(source_entity, limit=6)
+                message = next((m for m in messages if m.message), None)
+                if not message:
+                    print("⚠️ Нет подходящих текстовых сообщений. Пропуск.")
+                    time.sleep(task.interval_minutes * 60)
+                    continue
+
+                for group in task.target_groups.filter(is_active=True):
+                    try:
+                        group_entity = client.get_entity(group.username)
+                        client.forward_messages(group_entity, message)
+                        print(f"📤 Переслано в {group.username}")
+                    except FloodWaitError as e:
+                        print(f"⏳ FloodWait на {group.username}: ждём {e.seconds} сек")
+                        time.sleep(e.seconds)
+                        continue
+                    except Exception as e:
+                        print(f"❌ Ошибка пересылки в {group.username}: {e}")
+                        continue
+
+                task.last_sent_at = timezone.now()
+                task.save()
+
+                time.sleep(task.interval_minutes * 60)
+
+    except ForwardingTask.DoesNotExist:
+        print(f"❌ Задача с ID={task_id} не найдена")

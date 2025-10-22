@@ -31,8 +31,8 @@ ALLOWED_HOSTS = []
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),     # 🕐 Время жизни access-токена
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),         # 🔄 Время жизни refresh-токена
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": False,
     "BLACKLIST_AFTER_ROTATION": False,
     "AUTH_HEADER_TYPES": ("Bearer",),
@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'users',
     'accounts',
+    'forwarding',
     'corsheaders'
 ]
 
