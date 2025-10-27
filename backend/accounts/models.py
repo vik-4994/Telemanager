@@ -48,6 +48,24 @@ class TelegramAccount(models.Model):
 
     phone_code_hash = models.CharField(max_length=255, blank=True, null=True)
 
+    cooldown_until = models.DateTimeField(null=True, blank=True)
+    daily_cap = models.IntegerField(default=50)
+    sent_today = models.IntegerField(default=0)
+    sent_today_at = models.DateField(null=True, blank=True)
+
+
+    send_tokens = models.IntegerField(default=1)
+    send_token_capacity = models.IntegerField(default=3)
+    send_token_refill_at = models.DateTimeField(null=True, blank=True)
+    send_refill_seconds = models.IntegerField(default=30)
+    send_success_streak = models.IntegerField(default=0)
+
+    invite_tokens = models.IntegerField(default=1)
+    invite_token_capacity = models.IntegerField(default=3)
+    invite_token_refill_at = models.DateTimeField(null=True, blank=True)
+    invite_refill_seconds = models.IntegerField(default=60)
+    invite_success_streak = models.IntegerField(default=0)
+
     def __str__(self):
         return f"{self.phone} ({self.name})"
 

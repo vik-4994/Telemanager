@@ -16,6 +16,8 @@ import ForwardingGroups from "./pages/ForwardingGroups.jsx";
 import CreateForwardingTask from "./pages/CreateForwardingTask.jsx";
 import ForwardingTasks from "./pages/ForwardingTasks.jsx";
 import "bootstrap/dist/css/bootstrap.min.css";
+import ProcessedUsers from "./pages/ProcessedUsers.jsx";
+import TelegramProfileSettings from "./pages/TelegramProfileSettings.jsx";
 
 function App() {
   return (
@@ -125,6 +127,22 @@ function App() {
           element={
             <Layout>
               <ForwardingTasks />
+            </Layout>
+          }
+        />
+        <Route
+          path="/processed-users"
+          element={
+            <Layout>
+              <ProcessedUsers />
+            </Layout>
+          }
+        />
+        <Route
+          path="/accounts/profile"
+          element={
+            <Layout>
+              <TelegramProfileSettings />
             </Layout>
           }
         />

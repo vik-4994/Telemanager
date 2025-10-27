@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterView, TelegramUserCreateView, TrainingChannelCreateView, TrainingChannelListView, TrainingChannelDeleteView, TrainingChannelToggleActiveView
+from .views import RegisterView, TelegramUserCreateView, TrainingChannelCreateView, TrainingChannelListView, TrainingChannelDeleteView, TrainingChannelToggleActiveView, ProcessedUsersListView, ProcessedUsersStatsView, ProcessedUsersTimeSeriesView, ProcessedUsersTopAccountsView, ProcessedUsersTopSourcesView
 from .views import MeView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -16,4 +16,9 @@ urlpatterns = [
     path('channels/list/', TrainingChannelListView.as_view(), name='list-channels'),
     path('channels/<int:id>/toggle/', TrainingChannelToggleActiveView.as_view(), name='toggle-channel'),
     path('channels/<int:id>/delete/', TrainingChannelDeleteView.as_view(), name='delete-channel'),
+    path('processed-users/', ProcessedUsersListView.as_view(), name='processed-users'),
+    path('processed-users/stats/', ProcessedUsersStatsView.as_view(), name='processed-users-stats'),
+    path('processed-users/stats/timeseries/', ProcessedUsersTimeSeriesView.as_view(), name='processed-users-timeseries'),
+    path('processed-users/stats/top-sources/', ProcessedUsersTopSourcesView.as_view(), name='processed-users-top-sources'),
+    path('processed-users/stats/top-accounts/', ProcessedUsersTopAccountsView.as_view(), name='processed-users-top-accounts'),
 ]

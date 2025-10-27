@@ -29,3 +29,20 @@ class TrainingChannelSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingChannel
         fields = "__all__"
+
+
+class ProcessedUserSerializer(serializers.ModelSerializer):
+    processed = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TelegramUser
+        fields = [
+            "id", "user_id", "username", "name", "phone",
+            "source_channel", "invite_status", "message_status", "processed"
+        ]
+
+    def get_processed(self, obj):
+        return (
+            obj.invite_status in ("success", "failed")
+            or obj.message_status in ("sent", "failed")
+        )
