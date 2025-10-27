@@ -9,8 +9,37 @@ from accounts.models import TelegramAccount, IntermediateChannel
 from users.models import TelegramUser
 from datetime import timedelta
 from django.utils import timezone
+from django.conf import settings
 import re, random
+try:
+    import socks
+except Exception:
+    socks = None
 
+SESSION_DIR = os.path.join(settings.BASE_DIR, "sessions")
+
+def _session_path_for(account):
+    fname = account.session_file or f"{account.phone}.session"
+    return os.path.join(SESSION_DIR, fname)
+
+def _build_proxy(proxy_obj):
+    if not proxy_obj or not socks:
+        return None
+    t = (proxy_obj.proxy_type or '').lower()
+    if t == 'socks5':
+        return (socks.SOCKS5, proxy_obj.host, int(proxy_obj.port),
+                bool(proxy_obj.username or proxy_obj.password),
+                proxy_obj.username, proxy_obj.password)
+    if t in ('http', 'https'):
+        return (socks.HTTP, proxy_obj.host, int(proxy_obj.port),
+                bool(proxy_obj.username or proxy_obj.password),
+                proxy_obj.username, proxy_obj.password)
+    return None
+
+def _abs_path(p):
+    if not p:
+        return None
+    return p if os.path.isabs(p) else os.path.join(settings.BASE_DIR, p)
 
 def _extract_wait_seconds(err) -> int | None:
     secs = getattr(err, "seconds", None)
@@ -178,7 +207,7 @@ def invite_all_users_task(self, account_id, channel_id, interval=30, owner_user_
                                 u.processed_by_id = account_id
                             u.save()
                         
-                        # — FLOOD/TooMany → замедляемся
+
                         wait = getattr(e, "seconds", None)  # у RPCError может не быть секунд
                         with transaction.atomic():
                             acc = TelegramAccount.objects.select_for_update().get(id=account.id)
@@ -256,88 +285,76 @@ def invite_all_users_task(self, account_id, channel_id, interval=30, owner_user_
 
 
 @shared_task(bind=True)
-def send_direct_messages_task(
-    self,
-    account_id,
-    message_text,
-    limit=100,
-    interval=10,
-    media_path=None,
-    owner_user_id=None
-):
-    """
-    Рассылка в ЛС ТОЛЬКО пользователям владельца аккаунта (account.user_id).
-    """
-    import os, time
-    from accounts.models import TelegramAccount
-    from users.models import TelegramUser
+def send_direct_messages_task(self, account_id, message_text, limit=100, interval=10, media_path=None, owner_user_id=None):
+    import os, time, random
     from django.db import transaction
     from telethon.sync import TelegramClient
-    from telethon.errors import (
-        FloodWaitError,
-        RPCError,
-        PeerIdInvalidError,
-        UserPrivacyRestrictedError,
-    )
+    from telethon.errors import FloodWaitError, RPCError, PeerIdInvalidError, UserPrivacyRestrictedError
+    from accounts.models import TelegramAccount
+    from users.models import TelegramUser
+
+    JITTER_MAX = max(1, min(10, int(interval / 2)))
+    HARD_STOP_FLOOD = 1800  # сек
 
     account = TelegramAccount.objects.get(id=account_id)
     if owner_user_id is None:
         owner_user_id = account.user_id
 
-    session_path = os.path.join("sessions", account.session_file)
-    client = TelegramClient(session_path, int(account.api_id), account.api_hash)
+    session_path = _session_path_for(account)
+    proxy = _build_proxy(account.proxy)
+    media_path = _abs_path(media_path)
 
-    with client:
-        with transaction.atomic():
-            users = list(
-                TelegramUser.objects
-                .select_for_update(skip_locked=True)
-                .filter(
-                    owner_id=owner_user_id,
-                    message_status="pending",
-                    invite_status__in=["pending", "failed", "skipped", "invited", "success"]
-                )
-                .order_by("id")[:limit]
+    print(f"DM:start acc={account_id} owner={owner_user_id} limit={limit} interval={interval} media={bool(media_path)} -> session={session_path}")
+
+    with transaction.atomic():
+        users = list(
+            TelegramUser.objects
+            .select_for_update(skip_locked=True)
+            .filter(
+                owner_id=owner_user_id,
+                message_status="pending",
+                invite_status__in=["pending", "failed", "skipped", "invited", "success"]
             )
-            for u in users:
-                u.message_status = "processing"
-                u.message_error_code = None
-                if hasattr(u, "processed_by_id"):
-                    u.processed_by_id = account_id
-                u.save()
+            .order_by("id")[:limit]
+        )
+        for u in users:
+            u.message_status = "processing"
+            u.message_error_code = None
+            if hasattr(u, "processed_by_id"):
+                u.processed_by_id = account_id
+            u.save(update_fields=["message_status", "message_error_code"] + (["processed_by_id"] if hasattr(u, "processed_by_id") else []))
 
-        HARD_STOP_FLOOD = 1800
-        JITTER_MAX = max(1, min(10, int(interval/2)))
+    if not users:
+        msg = f"DM:no-candidates owner={owner_user_id}"
+        print(msg)
+        return msg
 
-        now = timezone.now()
-        if getattr(account, "sent_today_at", None) != now.date():
-            account.sent_today = 0
-            account.sent_today_at = now.date()
-            account.save(update_fields=["sent_today","sent_today_at"])
+    print(f"DM:users picked {len(users)}")
 
-        for idx, user in enumerate(users):
+    sent = failed = 0
+    client = TelegramClient(session_path, int(account.api_id), account.api_hash, proxy=proxy)
+
+    try:
+        client.connect()
+        if not client.is_user_authorized():
+            return "DM:not-authorized (session exists but not signed in)"
+
+        for user in users:
             try:
-                with transaction.atomic():
-                    acc = TelegramAccount.objects.select_for_update().get(id=account.id)
-                    ok, wait_for, refill_sec = _refill_and_consume_token(acc, "send", min_refill_sec=interval)
+                # Надёжнее выбирать идентификатор: username -> phone -> id
+                target = None
+                username = getattr(user, "username", None)
+                phone = getattr(user, "phone", None)
 
-                if not ok:
-                    if wait_for > 60:
-                        for r in users[idx:]:
-                            if r.message_status == "processing":
-                                r.message_status = "pending"
-                                r.save(update_fields=["message_status"])
-                        return f"Нет токенов: подождать ~{wait_for}s (send_refill_seconds={refill_sec})"
-                    time.sleep(wait_for)
+                if username:
+                    target = username if username.startswith("@") else f"@{username}"
+                elif phone:
+                    target = phone
+                else:
+                    target = int(user.user_id)
 
-                if getattr(account, "daily_cap", None) and account.sent_today >= account.daily_cap:
-                    for r in users[idx:]:
-                        if r.message_status == "processing":
-                            r.message_status = "pending"
-                            r.save(update_fields=["message_status"])
-                    return f"Достигнут daily_cap={account.daily_cap}"
+                entity = client.get_entity(target)
 
-                entity = client.get_entity(user.user_id)
                 if media_path and os.path.exists(media_path):
                     client.send_file(entity, media_path, caption=message_text)
                 else:
@@ -345,58 +362,56 @@ def send_direct_messages_task(
 
                 user.message_status = "sent"
                 user.message_error_code = None
-                if hasattr(user, "processed_by_id"):
-                    user.processed_by_id = account_id
-                user.save()
+                sent += 1
 
-                if hasattr(account, "sent_today"):
-                    account.sent_today += 1
-                    account.save(update_fields=["sent_today"])
-                
-                with transaction.atomic():
-                    acc = TelegramAccount.objects.select_for_update().get(id=account.id)
-                    _on_success_speedup(acc, "send", floor_interval=interval)
+            except FloodWaitError as e:
+                print(f"[{getattr(user,'user_id',None)}] FloodWait {e.seconds}s")
+                user.message_status = "failed"
+                user.message_error_code = "FLOOD_WAIT"
+                failed += 1
+                if e.seconds >= HARD_STOP_FLOOD:
+                    user.save(update_fields=["message_status", "message_error_code"])
+                    return f"DM:hard-stop flood={e.seconds}s"
+                time.sleep(min(e.seconds, 60))
+
+            except (PeerIdInvalidError, ValueError) as e:
+                # Не смогли получить entity по голому ID — частый кейс без access_hash
+                user.message_status = "failed"
+                user.message_error_code = "PEER_RESOLVE"
+                failed += 1
+
+            except UserPrivacyRestrictedError:
+                user.message_status = "failed"
+                user.message_error_code = "PRIVACY"
+                failed += 1
+
+            except RPCError as e:
+                print(f"[{getattr(user,'user_id',None)}] RPC {e}")
+                user.message_status = "failed"
+                user.message_error_code = "RPC_ERROR"
+                failed += 1
 
             except Exception as e:
-                wait = _extract_wait_seconds(e)
-                print(f"[{user.user_id}] ❗ {type(e).__name__}: {e}" + (f" · wait={wait}s" if wait else ""))
+                print(f"[{getattr(user,'user_id',None)}] UNKNOWN {e}")
+                user.message_status = "failed"
+                user.message_error_code = "UNKNOWN"
+                failed += 1
 
-                from telethon.errors import (
-                    UserPrivacyRestrictedError, PeerIdInvalidError, FloodWaitError
-                )
-                if isinstance(e, UserPrivacyRestrictedError):
-                    user.message_status = "failed"; user.message_error_code = "PRIVACY"
-                elif isinstance(e, PeerIdInvalidError):
-                    user.message_status = "failed"; user.message_error_code = "PEER_INVALID"
-                elif isinstance(e, FloodWaitError):
-                    user.message_status = "failed"; user.message_error_code = "FLOOD_WAIT"
-                else:
-                    user.message_status = "failed"; user.message_error_code = "RPC_ERROR"
-                user.save()
+            finally:
+                if hasattr(user, "processed_by_id"):
+                    user.processed_by_id = account_id
+                user.save(update_fields=["message_status", "message_error_code"] + (["processed_by_id"] if hasattr(user, "processed_by_id") else []))
+                time.sleep(interval + random.randint(0, JITTER_MAX))
 
-                with transaction.atomic():
-                    acc = TelegramAccount.objects.select_for_update().get(id=account.id)
-                    _on_flood_slowdown(acc, "send", wait=wait)
+        result = f"Рассылка завершена аккаунтом {account.phone}: sent={sent}, failed={failed}"
+        print(result)
+        return result
 
-                if wait and wait >= HARD_STOP_FLOOD:
-                    account.cooldown_until = timezone.now() + timedelta(seconds=wait)
-                    account.save(update_fields=["cooldown_until"])
-                    for r in users[idx+1:]:
-                        if r.message_status == "processing":
-                            r.message_status = "pending"
-                            r.save(update_fields=["message_status"])
-                    return f"Остановлено из-за FLOOD_WAIT {wait}s"
-
-                if not wait:
-                    base = max(2, int(interval))
-                    backoff = min(3600, base * random.randint(3, 6) + random.randint(0, 5))
-                    time.sleep(backoff)
-                else:
-                    time.sleep(wait)
-
-                continue
-
-            time.sleep(int(interval) + random.randint(0, JITTER_MAX))
+    finally:
+        try:
+            client.disconnect()
+        except Exception:
+            pass
 
 
 
